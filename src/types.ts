@@ -1,22 +1,22 @@
 export enum SyncStatus {
-  PENDING,
-  SYNCING,
-  SYNCED,
-  ERROR,
+  PENDING = 'PENDING',
+  SYNCING = 'SYNCING',
+  SYNCED = 'SYNCED',
+  ERROR = 'ERROR',
 }
 
 export interface NotaFiscal {
   id: string;
   numero: string;
   dataEmissao: string;
-  valor: number; // Valor Nominal
+  valor: number;
   status: SyncStatus;
-  errorMessage?: string;
-  processNumber?: string;
   cnpj: string;
   prestadorServico: string;
   valorServicos: number;
   dataGeracao: string;
+  processNumber?: string;
+  errorMessage?: string;
 }
 
 export interface ProcessDetails {
@@ -29,8 +29,13 @@ export interface ProcessDetails {
   docFiscal: string;
 }
 
-export enum AppStep {
-    UPLOAD_CERT,
-    FETCH_NF,
-    SYNC_NF,
+export interface Empresa {
+  id: string;
+  nome: string;
+  cnpj: string;
+  estado: string;
+  tpAmb: '1' | '2'; // '1' - Produção, '2' - Homologação
+  certificadoBase64?: string;
+  nomeCertificado?: string;
+  senhaCertificado?: string;
 }

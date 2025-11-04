@@ -1,29 +1,67 @@
 import { NotaFiscal, SyncStatus, ProcessDetails } from '../types';
 
-/**
- * Fetches Notas Fiscais by hitting the real backend API.
- * The backend will then communicate with the Receita Federal.
- * @param cnpj The CNPJ to fetch invoices for.
- * @param certificateFile The A1 certificate file (.pfx or .p12).
- * @param state The state code (e.g., DF, SP).
- * @param tpAmb The environment type ('1' for production, '2' for test).
- * @returns A Promise that resolves to an array of NotaFiscal objects.
- */
-export const fetchNotasFiscais = async (cnpj: string, certificateFile: File, state: string, tpAmb: string): Promise<NotaFiscal[]> => {
-  console.log(`Calling backend to fetch notas fiscais for CNPJ: ${cnpj}`);
+// --- CONTROLE DE MOCK ---
+// Altere para 'true' para usar dados de teste sem o backend.
+const USE_MOCK_API = false;
 
-  const certificatePassword = prompt("Please enter the password for your A1 certificate:");
-  if (certificatePassword === null) { // User clicked cancel
-      throw new Error("Operation cancelled.");
-  }
-  if (!certificatePassword) {
+/**
+ * Creates a mocked list of NotaFiscal objects for development purposes.
+ * @param cnpj The CNPJ to be included in the mock data.
+ * @returns An array of mock NotaFiscal objects.
+ */
+const _createMockNotasFiscais = (cnpj: string): NotaFiscal[] => {
+  console.warn("--- USING MOCKED API DATA (Notas Fiscais) ---");
+  return [
+    {
+      id: 'nf-mock-1',
+      numero: '12345',
+      dataEmissao: '2023-10-26',
+      valor: 1250.75,
+      status: SyncStatus.PENDING,
+      cnpj: cnpj,
+      prestadorServico: 'Alpha Services Ltda.',
+      valorServicos: 1250.75,
+      dataGeracao: '2023-10-26T10:00:00Z',
+    },
+    {
+      id: 'nf-mock-2',
+      numero: '12346',
+      dataEmissao: '2023-10-25',
+      valor: 850.00,
+      status: SyncStatus.PENDING,
+      cnpj: cnpj,
+      prestadorServico: 'Omega Solutions S.A.',
+      valorServicos: 850.00,
+      dataGeracao: '2023-10-25T14:30:00Z',
+    },
+  ];
+};
+
+
+/**
+ * Fetches Notas Fiscais by hitting the real backend API or returning mock data.
+ * The backend will then communicate with the Receita Federal.
+ */
+export const fetchNotasFiscais = async (
+    cnpj: string, 
+    certificateFile: File, 
+    state: string, 
+    tpAmb: string, 
+    certificatePassword?: string | null
+): Promise<NotaFiscal[]> => {
+  if (!USE_MOCK_API && !certificatePassword) {
       throw new Error("Certificate password is required.");
   }
 
+  if (USE_MOCK_API) {
+    await new Promise(resolve => setTimeout(resolve, 1500)); 
+    return _createMockNotasFiscais(cnpj);
+  }
+
   const formData = new FormData();
-  formData.append('cnpj', cnpj.replace(/\D/g, '')); // Send unformatted CNPJ
+  formData.append('cnpj', cnpj.replace(/\D/g, ''));
   formData.append('certificate', certificateFile);
-  formData.append('password', certificatePassword);
+  formData.append('password', certificatePassword as string);
   formData.append('state', state);
   formData.append('tpAmb', tpAmb);
 
@@ -38,47 +76,41 @@ export const fetchNotasFiscais = async (cnpj: string, certificateFile: File, sta
   }
 
   const data = await response.json();
-
   if (!data.notas || !Array.isArray(data.notas)) {
-    // If the API returns a valid response but no 'notas' array, it might mean no new notes were found.
-    // Check for a log message to confirm.
     if (data.logs && data.logs.info) {
         console.log("API Info:", data.logs.info);
-        return []; // Return an empty array, which is a valid result.
+        return [];
     }
     throw new Error("Invalid API response format: 'notas' array not found.");
   }
 
-  // Map the response from your API to the frontend's NotaFiscal type
-  return data.notas.map((nf: any): NotaFiscal => {
-      const emissionDate = new Date(nf.dataEmissao);
-      return {
-          id: `nf-${nf.numero}`, // Generate a unique ID
-          numero: nf.numero,
-          dataEmissao: emissionDate.toISOString().split('T')[0], // Format to YYYY-MM-DD
-          valor: nf.valor,
-          status: SyncStatus.PENDING,
-          cnpj: cnpj, // Pass the formatted CNPJ from the input
-          prestadorServico: nf.emitente,
-          valorServicos: nf.valor, // Map 'valor' as no specific field is available in the response
-          dataGeracao: emissionDate.toISOString(), // Use the full ISO string here
-      };
-  });
+  return data.notas.map((nf: any): NotaFiscal => ({
+      id: `nf-${nf.numero}`,
+      numero: nf.numero,
+      dataEmissao: new Date(nf.dataEmissao).toISOString().split('T')[0],
+      valor: nf.valor,
+      status: SyncStatus.PENDING,
+      cnpj: cnpj,
+      prestadorServico: nf.emitente,
+      valorServicos: nf.valor,
+      dataGeracao: new Date(nf.dataEmissao).toISOString(),
+  }));
 };
 
 /**
- * Mocks searching for process numbers directly in the frontend.
- * @param codEmpresa The company code.
- * @param codObra The work code.
+ * Mocks or calls the backend to search for process numbers.
  * @returns A promise that resolves to an array of ProcessDetails.
  */
-export const searchProcessNumbers = async (codEmpresa: string, codObra: string): Promise<ProcessDetails[]> => {
-  console.log(`(FRONTEND MOCK) Searching process numbers for Empresa ${codEmpresa} and Obra ${codObra}`);
-  
-  await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate network delay
-
-  if (Math.random() > 0.1) {
-    const results: ProcessDetails[] = Array.from({ length: Math.ceil(Math.random() * 5) + 1 }, () => {
+export const searchProcessNumbers = async (
+  codEmpresa: string, 
+  codObra: string,
+  periodoInicial: string,
+  periodoFinal: string,
+): Promise<ProcessDetails[]> => {
+  if (USE_MOCK_API) {
+    console.warn("--- USING MOCKED API DATA (Processos) ---");
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    return Array.from({ length: Math.ceil(Math.random() * 5) + 1 }, () => {
       const valor = parseFloat((Math.random() * 5000 + 50).toFixed(2));
       return {
         empresa: codEmpresa,
@@ -90,22 +122,55 @@ export const searchProcessNumbers = async (codEmpresa: string, codObra: string):
         docFiscal: `NF-${Math.floor(Math.random() * 10000)}`,
       };
     });
-    return results;
-  } else {
-    return [];
   }
+
+  // --- Real API Call ---
+  const body = {
+    empresa: parseInt(codEmpresa, 10),
+    obra: codObra,
+    periodoInicial: periodoInicial,
+    periodoFinal: periodoFinal,
+  };
+
+  const response = await fetch('http://localhost:8000/uau/consultar-processos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `Server error: ${response.status}` }));
+    throw new Error(errorData.message || `Failed to fetch processes from UAU API.`);
+  }
+
+  const data = await response.json();
+  
+  if (!Array.isArray(data)) {
+    throw new Error("Invalid response format from UAU API. Expected an array.");
+  }
+  
+  // Map the backend response to the frontend's ProcessDetails structure
+  return data.map((item: any): ProcessDetails => {
+    const firstParcel = item.Parcelas && item.Parcelas[0] ? item.Parcelas[0] : {};
+    return {
+      empresa: item.Empresa.toString(),
+      obra: item.Obra,
+      processo: item.NumeroProcesso,
+      chequeNominal: item.NomeFornecedor || firstParcel.Nominal || 'N/A',
+      valorAPagar: firstParcel.Valor || 0,
+      valorDocFiscal: firstParcel.ValorTotalDocumentoFiscal || firstParcel.Valor || 0,
+      docFiscal: firstParcel.NumeroDocumentofiscal || 'N/A',
+    };
+  });
 };
+
 
 /**
  * Mocks syncing a Nota Fiscal with the UAU system directly in the frontend.
- * @param nfId The ID of the Nota Fiscal to sync.
- * @param processNumber The process number to link.
- * @returns A promise that resolves to a success status and message.
  */
 export const syncToUau = async (nfId: string, processNumber: number): Promise<{ success: boolean; message: string }> => {
   console.log(`(FRONTEND MOCK) Syncing NF ${nfId} with process number ${processNumber}`);
-
-  await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
   
   if (Math.random() > 0.2) {
     return { success: true, message: `Nota Fiscal ${nfId.substring(0, 10)}... synced successfully!` };
