@@ -183,7 +183,7 @@ export const SincronizarNFes: React.FC<SincronizarNFesProps> = ({ empresas, load
     <div className="space-y-8">
       {/* Search Configuration */}
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700">
-        <h2 className="text-2xl font-bold mb-4 text-gray-100">Search Invoices</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-100">Buscar Notas Fiscais (NFe)</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div className="md:col-span-1">
             <label htmlFor="empresa-select" className="block text-sm font-medium text-gray-300 mb-1">Company</label>
