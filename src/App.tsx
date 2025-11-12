@@ -21,7 +21,7 @@ const App: React.FC = () => {
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-sky-400">UAU-SEFAZ Sync</h1>
+              <h1 className="text-2xl font-bold text-sky-400">Gestor de Contas</h1>
             </div>
             <div className="flex items-center gap-2">
               <button 
