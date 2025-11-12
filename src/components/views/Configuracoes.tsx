@@ -59,18 +59,18 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
         setEditingEmpresa(empresa);
         setIsFormVisible(true);
     };
-    
+
     const handleDelete = async (id: string) => {
         if (window.confirm("Are you sure you want to delete this company?")) {
             try {
                 await deleteEmpresa(id);
                 showNotification("Company deleted successfully.", 'success');
             } catch (err: any) {
-                 showNotification(err.message || "Failed to delete company.", 'error');
+                showNotification(err.message || "Failed to delete company.", 'error');
             }
         }
     };
-    
+
     const showNotification = (message: string, type: 'success' | 'error') => {
         setNotification({ message, type });
         setTimeout(() => setNotification(null), 5000);
@@ -81,22 +81,23 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
         setIsFormVisible(true);
     };
 
-    const InputField: React.FC<{ label: string, name: keyof Omit<Empresa, 'id'>, value: any, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void, type?: string, required?: boolean }> = 
+    const InputField: React.FC<{ label: string, name: keyof Omit<Empresa, 'id'>, value: any, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void, type?: string, required?: boolean }> =
         ({ label, name, value, onChange, type = 'text', required = false }) => (
-        <div>
-            <label htmlFor={name} className="block text-sm font-medium text-gray-300 mb-1">{label}</label>
-            <input
-                id={name}
-                name={name}
-                type={type}
-                required={required}
-                value={value || ''}
-                onChange={onChange}
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-            />
-        </div>
-    );
-    
+            <div>
+                {/* FIX: Cast `name` to string because `keyof` can return `string | number | symbol`. */}
+                <label htmlFor={name as string} className="block text-sm font-medium text-gray-300 mb-1">{label}</label>
+                <input
+                    id={name as string}
+                    name={name as string}
+                    type={type}
+                    required={required}
+                    value={value || ''}
+                    onChange={onChange}
+                    className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+            </div>
+        );
+
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
@@ -114,7 +115,7 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
                         <InputField label="CNPJ" name="cnpj" value={editingEmpresa.cnpj} onChange={e => setEditingEmpresa(p => ({ ...p, cnpj: e.target.value }))} required />
                         <InputField label="State (e.g., DF)" name="estado" value={editingEmpresa.estado} onChange={e => setEditingEmpresa(p => ({ ...p, estado: e.target.value }))} required />
                         <InputField label="Certificate Password" name="senhaCertificado" value={editingEmpresa.senhaCertificado} onChange={e => setEditingEmpresa(p => ({...p, senhaCertificado: e.target.value}))} type="password" required />
-                        
+
                         <div className="md:col-span-2">
                             <label htmlFor="tpAmb" className="block text-sm font-medium text-gray-300 mb-1">Environment</label>
                             <select
@@ -130,8 +131,8 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
                         </div>
 
                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-gray-300 mb-1">A1 Certificate (.pfx, .p12)</label>
-                             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md">
+                            <label className="block text-sm font-medium text-gray-300 mb-1">A1 Certificate (.pfx, .p12)</label>
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-600 border-dashed rounded-md">
                                 <div className="space-y-1 text-center">
                                     <UploadIcon className="mx-auto h-12 w-12 text-gray-500" />
                                     <div className="flex text-sm text-gray-400">
@@ -143,7 +144,7 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
                                     </div>
                                     <p className="text-xs text-gray-500">{editingEmpresa.nomeCertificado || 'PFX, P12 up to 10MB'}</p>
                                 </div>
-                             </div>
+                            </div>
                         </div>
                         <div className="md:col-span-2 flex justify-end gap-3 mt-4">
                             <button type="button" onClick={() => setIsFormVisible(false)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-500">Cancel</button>
@@ -178,7 +179,7 @@ export const Configuracoes: React.FC<ConfiguracoesProps> = ({ configManager }) =
                     ))}
                 </ul>
             </div>
-             {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
+            {notification && <Notification message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
         </div>
     );
 };

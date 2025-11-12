@@ -1,4 +1,5 @@
 {
   "name": "Nota Fiscal Sync for UAU",
-  "description": "An application to read Brazilian A1 certificates, fetch associated fiscal notes (Notas Fiscais), and sync them with the UAU system by linking them to process numbers."
+  "description": "An application to read Brazilian A1 certificates, fetch associated fiscal notes (Notas Fiscais), and sync them with the UAU system by linking them to process numbers.",
+  "requestFramePermissions": []
 }
