@@ -20,20 +20,21 @@ export interface NotaFiscal {
 }
 
 export interface ProcessDetails {
-    empresa: string
-    descrEmpresa?: string
-    obra: string
-    descrObra?: string
-    processo: number
-    fornecedor?: string
-    cnpjFornecedor?: string
-    valorParcela: number
-    valorDocFiscal: number
-    numeroDocFiscal: string
-    nominal?: string
-    dataVencimento?: string
-    dataPagamento?: string
-    historico?: string
+    empresa: string | number;
+    descrEmpresa: string;
+    obra: string;
+    descrObra: string;
+    processo: number;
+
+    chequeNominal: string;
+    valorAPagar: number;
+    valorDocFiscal: number;
+
+    fornecedor?: string;
+    cnpjFornecedor?: string;
+    dataVencimento?: string;
+    dataPagamento?: string;
+    historico?: string;
 }
 
 // FIX: Added the missing Empresa interface.

@@ -88,54 +88,59 @@ export const searchProcessNumbers = async (
     periodoInicial: string,
     periodoFinal: string
 ): Promise<ProcessDetails[]> => {
+
     const body = {
-        empresa: codEmpresa,
+        empresa: Number(codEmpresa),
         obra: codObra,
         periodoInicial,
         periodoFinal,
-    }
+    };
 
-    const response = await fetch('http://localhost:8000/uau/consultar-processos', {
+    const response = await fetch(`${API_BASE}/uau/consultar-processos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-    })
+    });
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({
             message: `Server error: ${response.status}`,
-        }))
-        throw new Error(errorData.message || `Failed to fetch processes from UAU API.`)
+        }));
+        throw new Error(errorData.message || `Failed to fetch processes from UAU API.`);
     }
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (!Array.isArray(data)) {
-        throw new Error('Invalid response format from UAU API. Expected an array.')
+        throw new Error('Invalid response format from UAU API. Expected an array.');
     }
 
-    // ✅ Normaliza o retorno do backend baseado no JSON real
-    return data.map((item): ProcessDetails => {
-        const parcela = Array.isArray(item.Parcelas) && item.Parcelas.length > 0 ? item.Parcelas[0] : null
+    return data.map((item: any): ProcessDetails => {
+        const parcela = Array.isArray(item.Parcelas) && item.Parcelas.length > 0
+            ? item.Parcelas[0]
+            : null;
 
         return {
-            empresa: String(item.Empresa ?? ''),
-            descrEmpresa: item.DescrEmpresa ?? '',
-            obra: item.Obra ?? '',
-            descrObra: item.DescrObra ?? '',
-            processo: Number(item.NumeroProcesso ?? 0),
-            fornecedor: item.NomeFornecedor ?? '',
-            cnpjFornecedor: item.CnpjFornecedor ?? '',
-            valorParcela: Number(parcela?.Valor ?? 0),
+            empresa: item.Empresa,
+            descrEmpresa: item.DescrEmpresa,
+            obra: item.Obra,
+            descrObra: item.DescrObra,
+            processo: item.NumeroProcesso,
+
+            // 🔥 CAMPOS QUE O ProcessCard PRECISA
+            chequeNominal: parcela?.Nominal ?? "",
+            valorAPagar: Number(parcela?.Valor ?? 0),
             valorDocFiscal: Number(parcela?.ValorTotalDocumentoFiscal ?? parcela?.Valor ?? 0),
-            numeroDocFiscal: parcela?.NumeroDocumentofiscal ?? '',
-            nominal: parcela?.Nominal ?? '',
-            dataVencimento: parcela?.DataVencimento ?? '',
-            dataPagamento: parcela?.DataPagamento ?? '',
-            historico: parcela?.HistoricoLancamentoContabil ?? '',
-        }
-    })
-}
+
+            // 🔥 CAMPOS OPCIONAIS
+            cnpjFornecedor: item.CnpjFornecedor ?? "",
+            fornecedor: item.NomeFornecedor ?? "",
+            dataVencimento: parcela?.DataVencimento ?? "",
+            dataPagamento: parcela?.DataPagamento ?? "",
+            historico: parcela?.HistoricoLancamentoContabil ?? "",
+        };
+    });
+};
 
 /**
  * Mock de sync de NF → UAU (frontend).
