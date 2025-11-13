@@ -1,50 +1,49 @@
-export enum SyncStatus {
-    PENDING = 'PENDING',
-    SYNCING = 'SYNCING',
-    SYNCED = 'SYNCED',
-    ERROR = 'ERROR',
-}
-
+// src/types.ts
 export interface NotaFiscal {
-    id: string;
-    numero: string;
-    dataEmissao: string;
-    valor: number;
-    status: SyncStatus;
-    cnpj: string;
-    prestadorServico: string;
-    valorServicos: number;
-    dataGeracao: string;
-    processNumber?: string;
-    errorMessage?: string;
+  id: string;
+  numero: string;
+  dataEmissao: string;
+  valor: number;
+  status: SyncStatus;
+  cnpj: string;
+  prestadorServico: string;
+  valorServicos: number;
+  dataGeracao: string;
+  processNumber?: string;
+  errorMessage?: string;
 }
 
 export interface ProcessDetails {
-    empresa: string | number;
-    descrEmpresa: string;
-    obra: string;
-    descrObra: string;
-    processo: number;
+  empresa: string | number;
+  descrEmpresa?: string;
+  obra: string;
+  descrObra?: string;
+  processo: number;
 
-    chequeNominal: string;
-    valorAPagar: number;
-    valorDocFiscal: number;
+  // Campos usados na UI
+  chequeNominal: string;
+  valorAPagar: number;
+  valorDocFiscal: number;
+  docFiscal?: string;
 
-    fornecedor?: string;
-    cnpjFornecedor?: string;
-    dataVencimento?: string;
-    dataPagamento?: string;
-    historico?: string;
+  // Campos extras úteis
+  fornecedor?: string;
+  cnpjFornecedor?: string;
+  dataVencimento?: string;
+  dataPagamento?: string;
+  historico?: string;
 }
 
-// FIX: Added the missing Empresa interface.
+export enum SyncStatus {
+  PENDING = 'PENDING',
+  SYNCING = 'SYNCING',
+  SYNCED = 'SYNCED',
+  ERROR = 'ERROR',
+}
+
 export interface Empresa {
-    id: string;
-    nome: string;
-    cnpj: string;
-    estado: string;
-    senhaCertificado: string;
-    certificadoBase64?: string;
-    nomeCertificado?: string;
-    tpAmb: '1' | '2';
+  id: string;
+  nome: string;
+  codigo: string;
+  obra: string;
 }
