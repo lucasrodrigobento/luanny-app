@@ -1,5 +1,6 @@
 // src/types.ts
 export interface NotaFiscal {
+  xml: string;
   id: string;
   numero: string;
   dataEmissao: string;

@@ -1,17 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NotaFiscal, SyncStatus } from '../types';
 import { ClockIcon } from './icons/ClockIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { ExclamationIcon } from './icons/ExclamationIcon';
 import { SpinnerIcon } from './icons/SpinnerIcon';
 
-interface NotaFiscalCardProps {
-    nota: NotaFiscal;
-    onSync: (id: string) => void;
-    onProcessNumberChange: (id: string, value: string) => void;
-    isSelected: boolean;
-    onSelect: (id: string) => void;
-}
+/* ----------------------- */
+/* FUNÇÕES DE FORMATAÇÃO   */
+/* ----------------------- */
+
+const formatCNPJ = (value: string) => {
+    if (!value) return "";
+    const digits = value.replace(/\D/g, "");
+    if (digits.length !== 14) return value;
+    return digits.replace(
+        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+        "$1.$2.$3/$4-$5"
+    );
+};
+
+const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    if (dateStr.includes("T")) dateStr = dateStr.split("T")[0];
+    const [yyyy, mm, dd] = dateStr.split("-");
+    if (!yyyy || !mm || !dd) return dateStr;
+    return `${dd}/${mm}/${yyyy}`;
+};
 
 const StatusBadge: React.FC<{ status: SyncStatus }> = ({ status }) => {
     const map: any = {
@@ -37,21 +51,26 @@ const Info: React.FC<{ label: string; value: any; full?: boolean }> = ({ label, 
     </div>
 );
 
+interface NotaFiscalCardProps {
+    nota: NotaFiscal;
+    isSelected: boolean;
+    onSelect: (id: string) => void;
+}
+
 export const NotaFiscalCard: React.FC<NotaFiscalCardProps> = ({
     nota,
-    onSync,
-    onProcessNumberChange,
     isSelected,
     onSelect,
 }) => {
-    const disableSync = nota.status === SyncStatus.SYNCING || nota.status === SyncStatus.SYNCED;
+
+    const [showXml, setShowXml] = useState(false);
 
     return (
         <div
             onClick={() => onSelect(nota.id)}
-            className={`p-5 rounded-xl bg-gray-800/60 border ${
-                isSelected ? "border-sky-500 shadow-lg shadow-sky-500/20" : "border-gray-700 hover:border-gray-500"
-            } transition-all cursor-pointer space-y-4`}
+            className={`p-5 rounded-xl bg-gray-800/60 border 
+                ${isSelected ? "border-sky-500 shadow-lg shadow-sky-500/20" : "border-gray-700 hover:border-gray-500"} 
+                transition-all cursor-pointer space-y-4`}
         >
 
             {/* Cabeçalho */}
@@ -62,10 +81,10 @@ export const NotaFiscalCard: React.FC<NotaFiscalCardProps> = ({
 
             {/* Infos */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <Info label="CNPJ" value={nota.cnpj} />
+                <Info label="CNPJ" value={formatCNPJ(nota.cnpj)} />
                 <Info label="Prestador de Serviço" value={nota.prestadorServico} full />
-                <Info label="Data Emissão" value={nota.dataEmissao} />
-                <Info label="Data Geração" value={nota.dataGeracao} />
+                <Info label="Data Emissão" value={formatDate(nota.dataEmissao)} />
+                <Info label="Data Geração" value={formatDate(nota.dataGeracao)} />
                 <Info 
                     label="Valor Nominal" 
                     value={nota.valor.toLocaleString('pt-BR',{ style:'currency', currency:'BRL' })} 
@@ -76,30 +95,28 @@ export const NotaFiscalCard: React.FC<NotaFiscalCardProps> = ({
                 />
             </div>
 
-            {/* Rodapé */}
-            <div className="flex justify-between items-center pt-3 border-t border-gray-700">
-                
-                <input
-                    type="number"
-                    value={nota.processNumber || ""}
-                    onChange={(e) => onProcessNumberChange(nota.id, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder="Processo"
-                    disabled={disableSync}
-                    className="p-2 bg-gray-700 border border-gray-600 rounded-md w-32 text-white text-sm"
-                />
+            {/* Botão Ver XML */}
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setShowXml(!showXml);
+                }}
+                className="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-sm px-3 py-2 rounded-md font-semibold transition"
+            >
+                {showXml ? "Ocultar XML" : "Ver XML"}
+            </button>
 
-                <button
-                    disabled={disableSync || !nota.processNumber}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onSync(nota.id);
-                    }}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-900 disabled:text-gray-400 rounded-lg font-semibold text-sm transition"
+            {/* Área expandida */}
+            {showXml && (
+                <div
+                    className="mt-3 p-3 bg-black/40 border border-gray-700 rounded-lg max-h-80 overflow-auto text-xs text-gray-200"
+                    onClick={(e) => e.stopPropagation()}
                 >
-                    {nota.status === SyncStatus.SYNCING ? <SpinnerIcon /> : "Sync"}
-                </button>
-            </div>
+                    <pre className="whitespace-pre-wrap leading-5">
+                        {nota.xml || "XML não disponível nesta nota."}
+                    </pre>
+                </div>
+            )}
 
             {nota.status === SyncStatus.ERROR && nota.errorMessage && (
                 <p className="text-xs text-red-400 text-right">{nota.errorMessage}</p>

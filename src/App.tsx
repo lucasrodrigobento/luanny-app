@@ -10,6 +10,20 @@ import { NotaFiscalCard } from './components/NotaFiscalCard';
 import { ProcessCard } from './components/ProcessCard';
 import { Notification } from './components/Notification';
 
+
+// Máscara de CNPJ
+const maskCNPJ = (value: string) => {
+    value = value.replace(/\D/g, ""); // remove tudo que não é número
+    value = value.slice(0, 14); // limita a 14 dígitos
+
+    if (value.length <= 2) return value;
+    if (value.length <= 5) return value.replace(/(\d{2})(\d+)/, "$1.$2");
+    if (value.length <= 8) return value.replace(/(\d{2})(\d{3})(\d+)/, "$1.$2.$3");
+    if (value.length <= 12) return value.replace(/(\d{2})(\d{3})(\d{3})(\d+)/, "$1.$2.$3/$4");
+    return value.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+};
+
+
 const App: React.FC = () => {
     // ------------------------------
     // Estados Notas Fiscais
@@ -18,7 +32,6 @@ const App: React.FC = () => {
     const [startDateNF, setStartDateNF] = useState('');
     const [endDateNF, setEndDateNF] = useState('');
     const [notas, setNotas] = useState<NotaFiscal[]>([]);
-    const [selectedNota, setSelectedNota] = useState<string | null>(null);
 
     // ------------------------------
     // Estados Processos UAU
@@ -30,6 +43,11 @@ const App: React.FC = () => {
     const [processos, setProcessos] = useState<ProcessDetails[]>([]);
 
     // ------------------------------
+    // Nota selecionada por processo
+    // ------------------------------
+    const [notaSelecionadaPorProcesso, setNotaSelecionadaPorProcesso] = useState<{ [proc: number]: string }>({});
+
+    // ------------------------------
     // Notificações
     // ------------------------------
     const [notification, setNotification] = useState<{
@@ -37,19 +55,39 @@ const App: React.FC = () => {
         type: 'success' | 'error';
     } | null>(null);
 
+    const notify = (msg: string, type: 'success' | 'error') => {
+        setNotification({ message: msg, type });
+        setTimeout(() => setNotification(null), 3500);
+    };
+
     // ------------------------------
-    // Ações
+    // Carregar Notas
     // ------------------------------
     const handleFetchNotas = async () => {
+
+        if (!cnpj.trim() || !startDateNF || !endDateNF) {
+            notify("Preencha CNPJ, Data inicial e Data final para consultar Notas!", "error");
+            return;
+        }
+
         try {
             const data = await fetchNotasFiscais(cnpj, startDateNF, endDateNF);
             setNotas(data);
         } catch (error: any) {
-            setNotification({ message: error.message, type: 'error' });
+            notify(error.message, 'error');
         }
     };
 
+    // ------------------------------
+    // Carregar Processos
+    // ------------------------------
     const handleFetchProcessos = async () => {
+
+        if (!empresa.trim() || !obra.trim() || !startDateProcess || !endDateProcess) {
+            notify("Preencha Empresa, Obra, Data inicial e Data final para consultar Processos!", "error");
+            return;
+        }
+
         try {
             const data = await searchProcessNumbers(
                 empresa,
@@ -59,69 +97,65 @@ const App: React.FC = () => {
             );
             setProcessos(data);
         } catch (error: any) {
-            setNotification({ message: error.message, type: 'error' });
+            notify(error.message, 'error');
         }
     };
 
-    const handleSelectNota = (id: string) => {
-        setSelectedNota(id === selectedNota ? null : id);
+    // Selecionar Nota dentro do Processo
+    const handleSelectNotaProcesso = (processoNumero: number, notaId: string) => {
+        setNotaSelecionadaPorProcesso(prev => ({
+            ...prev,
+            [processoNumero]: notaId
+        }));
     };
 
-    const handleProcessNumberChange = (id: string, value: string) => {
-        setNotas((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, processNumber: value } : n))
-        );
-    };
+    // ------------------------------
+    // Vincular & Sincronizar
+    // ------------------------------
+    const handleLinkAndSyncProcesso = async (processoNumero: number) => {
+        const notaId = notaSelecionadaPorProcesso[processoNumero];
 
-    const handleSync = async (id: string) => {
-        setNotas((prev) =>
-            prev.map((n) =>
-                n.id === id ? { ...n, status: SyncStatus.SYNCING } : n
+        if (!notaId) {
+            notify("Selecione uma Nota Fiscal!", "error");
+            return;
+        }
+
+        setNotas(prev =>
+            prev.map(n =>
+                n.id === notaId ? { ...n, status: SyncStatus.SYNCING } : n
             )
         );
-        const nota = notas.find((n) => n.id === id);
-        if (!nota?.processNumber) return;
 
-        const processNumber = parseInt(nota.processNumber, 10);
         try {
-            const result = await syncToUau(id, processNumber);
-            setNotas((prev) =>
-                prev.map((n) =>
-                    n.id === id
+            const result = await syncToUau(notaId, processoNumero);
+
+            setNotas(prev =>
+                prev.map(n =>
+                    n.id === notaId
                         ? {
-                              ...n,
-                              status: result.success
-                                  ? SyncStatus.SYNCED
-                                  : SyncStatus.ERROR,
-                              errorMessage: result.success
-                                  ? ''
-                                  : result.message,
-                          }
+                            ...n,
+                            status: result.success ? SyncStatus.SYNCED : SyncStatus.ERROR,
+                            errorMessage: result.success ? "" : result.message,
+                            processNumber: String(processoNumero)
+                        }
                         : n
                 )
             );
-            setNotification({
-                message: result.message,
-                type: result.success ? 'success' : 'error',
-            });
-        } catch (error: any) {
-            setNotas((prev) =>
-                prev.map((n) =>
-                    n.id === id
-                        ? {
-                              ...n,
-                              status: SyncStatus.ERROR,
-                              errorMessage: error.message,
-                          }
-                        : n
-                )
+
+            notify(
+                result.success
+                    ? `Nota sincronizada com o processo ${processoNumero}!`
+                    : result.message,
+                result.success ? "success" : "error"
             );
-            setNotification({ message: error.message, type: 'error' });
+
+        } catch (err: any) {
+            notify(err.message, "error");
         }
     };
 
     // ------------------------------
-    // Layout
+    // Layout final
     // ------------------------------
     return (
         <div className="min-h-screen bg-gray-900 text-white p-6">
@@ -136,135 +170,190 @@ const App: React.FC = () => {
                 </span>
             </div>
 
-            {/* DUAS COLUNAS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* Coluna da esquerda — NOTAS FISCAIS */}
+                {/* Coluna de Notas */}
                 <div className="bg-gray-800 p-4 rounded-lg">
                     <h2 className="font-semibold text-lg mb-3">Consultar Notas Fiscais</h2>
 
-                    {/* Filtros NF */}
-                    <div className="flex flex-wrap gap-3 items-center mb-4">
-                        <input
-                            placeholder="CNPJ"
-                            value={cnpj}
-                            onChange={(e) => setCnpj(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white w-40"
-                        />
+                    <div className="flex flex-wrap gap-3 items-end mb-4">
 
-                        <input
-                            type="date"
-                            value={startDateNF}
-                            onChange={(e) => setStartDateNF(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white"
-                        />
+                        {/* CNPJ */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                CNPJ <span className="text-red-500">*</span>
+                            </label>
+                                <input
+                                    placeholder="CNPJ"
+                                    value={cnpj}
+                                    onChange={(e) => setCnpj(maskCNPJ(e.target.value))}
+                                    className={`p-2 rounded w-40 text-white 
+                                        ${!cnpj.trim() ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                    `}
+                                    title={!cnpj.trim() ? "Campo obrigatório" : ""}
+                                />
 
-                        <input
-                            type="date"
-                            value={endDateNF}
-                            onChange={(e) => setEndDateNF(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white"
-                        />
+                        </div>
 
+                        {/* Data Inicial */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Data Inicial <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={startDateNF}
+                                onChange={(e) => setStartDateNF(e.target.value)}
+                                className={`p-2 rounded text-white 
+                                    ${!startDateNF ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!startDateNF ? "Campo obrigatório" : ""}
+                            />
+                        </div>
+
+                        {/* Data Final */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Data Final <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={endDateNF}
+                                onChange={(e) => setEndDateNF(e.target.value)}
+                                className={`p-2 rounded text-white 
+                                    ${!endDateNF ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!endDateNF ? "Campo obrigatório" : ""}
+                            />
+                        </div>
+
+                        {/* Botão */}
                         <button
                             onClick={handleFetchNotas}
-                            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 font-semibold rounded px-3 py-2 text-sm whitespace-nowrap"
+                            disabled={!cnpj.trim() || !startDateNF || !endDateNF}
+                            className={`flex items-center gap-2 font-semibold rounded px-3 py-2 text-sm whitespace-nowrap 
+                                ${(!cnpj.trim() || !startDateNF || !endDateNF)
+                                    ? "bg-sky-900 text-gray-500 cursor-not-allowed"
+                                    : "bg-sky-600 hover:bg-sky-700"}`}
                         >
                             🔍 Buscar
                         </button>
+
                     </div>
 
-                    {/* Lista NF (scroll independente) */}
+                    {/* Lista NF */}
                     <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4">
                         {notas.map((nota) => (
                             <NotaFiscalCard
                                 key={nota.id}
                                 nota={nota}
-                                onSync={handleSync}
-                                onProcessNumberChange={handleProcessNumberChange}
-                                isSelected={selectedNota === nota.id}
-                                onSelect={handleSelectNota}
+                                isSelected={false}
+                                onSelect={() => {}}
                             />
                         ))}
                     </div>
                 </div>
 
-                {/* Coluna da direita — PROCESSOS UAU */}
+                {/* Coluna de Processos */}
                 <div className="bg-gray-800 p-4 rounded-lg">
                     <h2 className="font-semibold text-lg mb-3">Consultar Processos UAU</h2>
 
-                    {/* Filtros Processos */}
-                    <div className="flex flex-wrap gap-3 items-center mb-4">
+                    <div className="flex flex-wrap gap-3 items-end mb-4">
 
-                        <input
-                            placeholder="Empresa"
-                            value={empresa}
-                            onChange={(e) => setEmpresa(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white w-20"
-                        />
+                        {/* Empresa */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Empresa <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                placeholder="Empresa"
+                                value={empresa}
+                                onChange={(e) => setEmpresa(e.target.value)}
+                                className={`p-2 rounded text-white w-20
+                                    ${!empresa.trim() ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!empresa.trim() ? "Campo obrigatório" : ""}
+                            />
+                        </div>
 
-                        <input
-                            placeholder="Obra"
-                            value={obra}
-                            onChange={(e) => setObra(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white w-20"
-                        />
+                        {/* Obra */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Obra <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                placeholder="Obra"
+                                value={obra}
+                                onChange={(e) => setObra(e.target.value)}
+                                className={`p-2 rounded text-white w-20
+                                    ${!obra.trim() ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!obra.trim() ? "Campo obrigatório" : ""}
+                            />
+                        </div>
 
-                        <input
-                            type="date"
-                            value={startDateProcess}
-                            onChange={(e) => setStartDateProcess(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white"
-                        />
+                        {/* Data Inicial */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Data Inicial <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={startDateProcess}
+                                onChange={(e) => setStartDateProcess(e.target.value)}
+                                className={`p-2 rounded text-white 
+                                    ${!startDateProcess ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!startDateProcess ? "Campo obrigatório" : ""}
+                            />
+                        </div>
 
-                        <input
-                            type="date"
-                            value={endDateProcess}
-                            onChange={(e) => setEndDateProcess(e.target.value)}
-                            className="p-2 rounded bg-gray-700 border border-gray-600 text-white"
-                        />
+                        {/* Data Final */}
+                        <div className="flex flex-col">
+                            <label className="text-xs mb-1">
+                                Data Final <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={endDateProcess}
+                                onChange={(e) => setEndDateProcess(e.target.value)}
+                                className={`p-2 rounded text-white 
+                                    ${!endDateProcess ? "border-red-500 bg-red-900/20" : "border-gray-600 bg-gray-700"}
+                                `}
+                                title={!endDateProcess ? "Campo obrigatório" : ""}
+                            />
+                        </div>
 
+                        {/* Botão */}
                         <button
                             onClick={handleFetchProcessos}
-                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 font-semibold rounded px-3 py-2 text-sm whitespace-nowrap"
+                            disabled={!empresa.trim() || !obra.trim() || !startDateProcess || !endDateProcess}
+                            className={`flex items-center gap-2 font-semibold rounded px-3 py-2 text-sm whitespace-nowrap 
+                                ${(!empresa.trim() || !obra.trim() || !startDateProcess || !endDateProcess)
+                                    ? "bg-indigo-900 text-gray-500 cursor-not-allowed"
+                                    : "bg-indigo-600 hover:bg-indigo-700"}`}
                         >
                             🔍 Buscar
                         </button>
+
                     </div>
 
-                    {/* Lista Processos (scroll independente) */}
+                    {/* Lista Processos */}
                     <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-4">
                         {processos.map((proc) => (
                             <ProcessCard
                                 key={proc.processo}
                                 processo={proc}
-                                onLink={(numero) => {
-                                    if (selectedNota) {
-                                        setNotas((prev) =>
-                                            prev.map((n) =>
-                                                n.id === selectedNota
-                                                    ? { ...n, processNumber: String(numero) }
-                                                    : n
-                                            )
-                                        );
-                                        setNotification({
-                                            message: `Nota vinculada ao processo ${numero}`,
-                                            type: 'success',
-                                        });
-                                    } else {
-                                        setNotification({
-                                            message: 'Selecione uma nota antes de vincular!',
-                                            type: 'error',
-                                        });
-                                    }
-                                }}
+                                notas={notas}
+                                selectedNotaProcesso={notaSelecionadaPorProcesso[proc.processo]}
+                                onSelectNota={handleSelectNotaProcesso}
+                                onLinkAndSync={handleLinkAndSyncProcesso}
                             />
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* Notificação */}
             {notification && (
                 <Notification
                     message={notification.message}

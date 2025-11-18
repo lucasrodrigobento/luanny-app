@@ -1,3 +1,10 @@
+export enum SyncStatus {
+    PENDING = 'PENDING',
+    SYNCING = 'SYNCING',
+    SYNCED = 'SYNCED',
+    ERROR = 'ERROR',
+}
+
 export interface NotaFiscal {
     id: string;
     numero: string;
@@ -10,6 +17,8 @@ export interface NotaFiscal {
     dataGeracao: string;
     processNumber?: string;
     errorMessage?: string;
+
+    xml?: string | null;
 }
 
 export interface ProcessDetails {
@@ -20,13 +29,6 @@ export interface ProcessDetails {
     valorAPagar: number;
     valorDocFiscal: number;
     docFiscal: string;
-}
-
-export enum SyncStatus {
-    PENDING = 'PENDING',
-    SYNCING = 'SYNCING',
-    SYNCED = 'SYNCED',
-    ERROR = 'ERROR',
 }
 
 export interface Empresa {
