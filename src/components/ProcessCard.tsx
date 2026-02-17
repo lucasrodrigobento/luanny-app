@@ -9,6 +9,7 @@ interface ProcessCardProps {
     onSelectNota: (processNumber: number, notaId: string) => void;
     onLinkAndSync: (processNumber: number) => void;
     isSelected?: boolean;
+    onNovaNFClick: (processo: ProcessDetails) => void;
 }
 
 export const ProcessCard: React.FC<ProcessCardProps> = ({
@@ -17,8 +18,11 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({
     selectedNotaProcesso,
     onSelectNota,
     onLinkAndSync,
-    isSelected
+    isSelected,
+    onNovaNFClick,
 }) => {
+    const disabledByGeneratedNF = processo.hasGeneratedNF;
+
     return (
         <div
             className={`p-5 bg-gray-800/60 rounded-xl border transition-all space-y-4 
@@ -44,6 +48,7 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({
                     value={selectedNotaProcesso || ""}
                     onChange={(e) => onSelectNota(processo.processo, e.target.value)}
                     className="p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                    disabled={disabledByGeneratedNF}
                 >
                     <option value="">Selecione uma Nota Fiscal</option>
 
@@ -84,15 +89,25 @@ export const ProcessCard: React.FC<ProcessCardProps> = ({
                 </div>
             </div>
 
-            {/* Botão Vincular & Sincronizar */}
-            <button
-                onClick={() => onLinkAndSync(processo.processo)}
-                disabled={!selectedNotaProcesso}
-                className="w-full mt-3 flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg disabled:bg-gray-700 disabled:text-gray-400"
-            >
-                <LinkIcon className="w-4 h-4 mr-2" />
-                Vincular & Sincronizar
-            </button>
+            {/* Ações */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                    onClick={() => onLinkAndSync(processo.processo)}
+                    disabled={!selectedNotaProcesso || disabledByGeneratedNF}
+                    className="flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg disabled:bg-gray-700 disabled:text-gray-400"
+                >
+                    <LinkIcon className="w-4 h-4 mr-2" />
+                    Vincular &amp; Sync
+                </button>
+
+                <button
+                    onClick={() => onNovaNFClick(processo)}
+                    disabled={disabledByGeneratedNF}
+                    className="flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:bg-gray-700 disabled:text-gray-400"
+                >
+                    + Nova NF
+                </button>
+            </div>
 
         </div>
     );

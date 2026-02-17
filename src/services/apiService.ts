@@ -133,6 +133,7 @@ export const searchProcessNumbers = async (
       // extras
       fornecedor: item.NomeFornecedor ?? '',
       cnpjFornecedor: item.CnpjFornecedor ?? '',
+      codigoFornecedor: item.CodigoFornecedor ?? undefined,
       dataVencimento: parcela?.DataVencimento ?? '',
       dataPagamento: parcela?.DataPagamento ?? '',
       historico: parcela?.HistoricoLancamentoContabil ?? '',
@@ -155,4 +156,39 @@ export const syncToUau = async (
     } else {
         return { success: false, message: `Error syncing NF: UAU API connection failed.` };
     }
+};
+
+/**
+ * Gerar nova Nota Fiscal no UAU vinculada a um processo
+ */
+export const gerarNotaFiscalUAU = async (payload: import('../types').GerarNotaFiscalRequest) => {
+  const response = await fetch(`${API_BASE}/uau/gerar-nota-fiscal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || `Falha ao gerar Nota Fiscal no UAU.`);
+  }
+
+  return response.json();
+};
+
+/**
+ * Busca modelos de NF do backend, que por sua vez já considera a empresa (UAU_EMPRESA).
+ */
+export const fetchModelosNota = async () => {
+  const response = await fetch(`${API_BASE}/uau/modelos-nota`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || `Falha ao buscar modelos de NF.`);
+  }
+
+  return response.json() as Promise<Array<{ codigo: number | string; descricao: string }>>;
 };
